@@ -4,7 +4,7 @@ services:
 
   web: 
 
-    image: django notes-app:latest
+    image: roshanx/django-notes-app:latest
 
     ports: 
 
