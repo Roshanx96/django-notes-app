@@ -1,18 +1,22 @@
 version: '3.8'
 
 services:
-  db:
-    image: mysql:5.7
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: django_db
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: devops
     volumes:
       - db_data:/var/lib/mysql
     networks:
       - app-network
+    ports:
+      - "3306:3306"
 
-  web:
+  notes-app:
     build: .
+    container_name: notes-app
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
@@ -20,12 +24,12 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      - mysql
     environment:
-      DB_NAME: django_db
+      DB_NAME: devops
       DB_USER: root
-      DB_PASSWORD: rootpassword
-      DB_HOST: db
+      DB_PASSWORD: root
+      DB_HOST: mysql
       DB_PORT: 3306
     networks:
       - app-network
