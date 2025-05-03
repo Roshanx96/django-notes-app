@@ -8,23 +8,29 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: devops
     volumes:
-      - db_data:/var/lib/mysql
-    networks:
-      - app-network
+      - /user/ubuntu/db_data:/var/lib/mysql
     ports:
       - "3306:3306"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   notes-app:
-    build: .
+    image: notes-app:latest  # This will be replaced by Jenkins
     container_name: notes-app
     command: python manage.py runserver 0.0.0.0:8000
+    working_dir: /app
     volumes:
       - .:/app
-    working_dir: /app
     ports:
       - "8000:8000"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     environment:
       DB_NAME: devops
       DB_USER: root
