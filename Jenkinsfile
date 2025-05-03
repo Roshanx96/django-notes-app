@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'DOCKER_IMAGE_TAG', description: 'Docker Image Tag', defaultValue: 'latest')
+        string(name: 'DOCKER_IMAGE_TAG', description: 'Docker Image Tag (optional)', defaultValue: 'latest')
     }
 
     environment {
-        DOCKER_CREDENTIALS = 'dockerhub-credentials' // Jenkins credentials ID
+        DOCKER_CREDENTIALS = 'dockerhub-credentials'  // still here if you push later
     }
 
     stages {
@@ -15,9 +15,8 @@ pipeline {
                 script {
                     if (!params.DOCKER_IMAGE_TAG?.trim()) {
                         error("❌ Docker image tag cannot be empty or blank!")
-                    } else {
-                        echo "✅ Valid tag provided: '${params.DOCKER_IMAGE_TAG}'"
                     }
+                    echo "✅ Using Docker tag: ${params.DOCKER_IMAGE_TAG}"
                 }
             }
         }
@@ -29,36 +28,28 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Update docker-compose.yml with Dynamic Tag') {
             steps {
                 script {
-                    sh "docker build -t roshanx/django-notes-app:${params.DOCKER_IMAGE_TAG} ."
-                    echo "✅ Docker image built: roshanx/django-notes-app:${params.DOCKER_IMAGE_TAG}"
+                    // Dynamically replace the image tag in the docker-compose.yml
+                    sh """
+                    sed -i 's/notes-app:.*/notes-app:${params.DOCKER_IMAGE_TAG}/' docker-compose.yml
+                    """
+                    echo "✅ Docker image tag in docker-compose.yml updated to: ${params.DOCKER_IMAGE_TAG}"
                 }
             }
         }
 
-        stage('Push Docker Image') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push roshanx/django-notes-app:${DOCKER_IMAGE_TAG}
-                        docker logout
-                    '''
-                    echo "✅ Docker image pushed to Docker Hub"
-                }
-            }
-        }
-
-        stage('Run the Container') {
+        stage('Run with Docker Compose') {
             steps {
                 script {
-                    sh '''
-                        docker rm -f mycontainer || true
-                        docker run -d --name mycontainer -p 8000:8000 roshanx/django-notes-app:${DOCKER_IMAGE_TAG}
-                    '''
-                    echo "🚀 Container 'mycontainer' is running on port 8000"
+                    // Stop any existing containers
+                    sh 'docker-compose down || true'
+
+                    // Rebuild and run containers
+                    sh 'docker-compose up --build -d'
+
+                    echo "🚀 Docker Compose stack is running"
                 }
             }
         }
@@ -66,10 +57,10 @@ pipeline {
 
     post {
         success {
-            echo "🎉 Build, push, and container run completed successfully!"
+            echo "🎉 Pipeline completed successfully!"
         }
         failure {
-            echo "💥 Pipeline failed! Check logs for details."
+            echo "💥 Pipeline failed! Check the logs above."
         }
     }
 }
