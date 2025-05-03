@@ -32,9 +32,9 @@ pipeline {
             steps {
                 script {
                     // Dynamically replace the image tag in the docker-compose.yml
-                    sh """
+                    sh '''
                     sed -i 's|image: roshanx/django-notes-app:.*|image: roshanx/django-notes-app:${DOCKER_IMAGE_TAG}|' docker-compose.yml
-                    """
+                    '''
                     echo "✅ Docker image tag in docker-compose.yml updated to: ${params.DOCKER_IMAGE_TAG}"
                 }
             }
