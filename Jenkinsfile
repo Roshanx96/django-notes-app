@@ -28,13 +28,25 @@ pipeline {
             }
         }
 
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "Building Docker image with tag: ${params.DOCKER_IMAGE_TAG}"
+                    sh """
+                    docker build -t roshanx/django-notes-app:${DOCKER_IMAGE_TAG} .
+                    """
+                    echo "✅ Docker image built with tag: ${params.DOCKER_IMAGE_TAG}"
+                }
+            }
+        }
+
         stage('Update docker-compose.yml with Dynamic Tag') {
             steps {
                 script {
                     // Dynamically replace the image tag in the docker-compose.yml
-                    sh '''
+                    sh """
                     sed -i 's|image: roshanx/django-notes-app:.*|image: roshanx/django-notes-app:${DOCKER_IMAGE_TAG}|' docker-compose.yml
-                    '''
+                    """
                     echo "✅ Docker image tag in docker-compose.yml updated to: ${params.DOCKER_IMAGE_TAG}"
                 }
             }
