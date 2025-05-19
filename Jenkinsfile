@@ -1,78 +1,57 @@
 pipeline {
     agent any
 
-    parameters {
-        string(name: 'DOCKER_IMAGE_TAG', description: 'Docker Image Tag (optional)', defaultValue: 'latest')
-    }
-
-    environment {
-        DOCKER_CREDENTIALS = 'dockerhub-credentials'  // still here if you push later
-    }
-
     stages {
-        stage('Validate Parameters') {
-            steps {
-                script {
-                    if (!params.DOCKER_IMAGE_TAG?.trim()) {
-                        error("❌ Docker image tag cannot be empty or blank!")
-                    }
-                    echo "✅ Using Docker tag: ${params.DOCKER_IMAGE_TAG}"
-                }
-            }
-        }
-
-        stage('Checkout Code') {
+        stage('Code Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/Roshanx96/django-notes-app.git'
-                echo "✅ Repository checked out"
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    echo "Building Docker image with tag: ${params.DOCKER_IMAGE_TAG}"
-                    sh """
-                    docker build -t roshanx/django-notes-app:${DOCKER_IMAGE_TAG} .
-                    """
-                    echo "✅ Docker image built with tag: ${params.DOCKER_IMAGE_TAG}"
+                sh 'docker build -t notes-app .'
+            }
+        }
+
+        stage('Login to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-cred',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
                 }
             }
         }
 
-        stage('Update docker-compose.yml with Dynamic Tag') {
+        stage('Push Docker Image to DockerHub') {
             steps {
-                script {
-                    // Dynamically replace the image tag in the docker-compose.yml
-                    sh """
-                    sed -i 's|image: roshanx/django-notes-app:.*|image: roshanx/django-notes-app:${DOCKER_IMAGE_TAG}|' docker-compose.yml
-                    """
-                    echo "✅ Docker image tag in docker-compose.yml updated to: ${params.DOCKER_IMAGE_TAG}"
-                }
+                sh '''
+                    docker tag notes-app roshanx/notes-app:latest
+                    docker push roshanx/notes-app:latest
+                '''
             }
         }
 
-        stage('Run with Docker Compose') {
+        stage('Run the Container') {
             steps {
-                script {
-                    // Stop any existing containers
-                    sh 'docker-compose down || true'
-
-                    // Rebuild and run containers
-                    sh 'docker-compose up --build -d'
-
-                    echo "🚀 Docker Compose stack is running"
-                }
+                sh '''
+                    docker stop mycontainer || true
+                    docker rm -f mycontainer || true
+                    docker run --name mycontainer -d -p 8000:8000 roshanx/notes-app:latest
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "🎉 Pipeline completed successfully!"
+            echo "✅ Deployment successful!"
         }
         failure {
-            echo "💥 Pipeline failed! Check the logs above."
+            echo "❌ Deployment failed!"
         }
     }
 }
