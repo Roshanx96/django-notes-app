@@ -14,6 +14,11 @@ services:
     ports:
       - "3306:3306"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   notes-app:
     image: roshanx/django-notes-app:latest
@@ -31,6 +36,10 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    entrypoint: >
+      sh -c "while ! nc -z mysql 3306; do echo 'Waiting for MySQL...'; sleep 2; done &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
 
 networks:
   app-network:
