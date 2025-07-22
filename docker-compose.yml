@@ -13,6 +13,7 @@ services:
       - app-network
     ports:
       - "3306:3306"
+    restart: unless-stopped
 
   notes-app:
     image: roshanx/django-notes-app:latest
@@ -29,9 +30,7 @@ services:
       DB_PORT: 3306
     networks:
       - app-network
-
-volumes:
-  db_data:
+    restart: unless-stopped
 
 networks:
   app-network:
